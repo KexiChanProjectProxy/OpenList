@@ -506,6 +506,10 @@ func AddOfflineDownload(c *gin.Context) {
 		if trimmedUrl == "" {
 			continue
 		}
+		if err := tool.ValidateURLForTool(req.Tool, trimmedUrl); err != nil {
+			common.ErrorResp(c, err, 400)
+			return
+		}
 
 		t, err := tool.AddURL(c, &tool.AddURLArgs{
 			URL:          trimmedUrl,

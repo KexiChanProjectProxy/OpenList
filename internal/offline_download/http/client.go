@@ -75,7 +75,11 @@ func (s SimpleHttp) Run(task *tool.DownloadTask) error {
 	if err != nil {
 		filename = path.Base(resp.Request.URL.Path)
 	}
-	filename = strings.Trim(filename, "/")
+	filename = strings.ReplaceAll(filename, "\\", "/")
+	filename = path.Base(strings.TrimSpace(filename))
+	if filename == "." || filename == ".." {
+		filename = ""
+	}
 	if len(filename) == 0 {
 		filename = fmt.Sprintf("%s-%d-%x", strings.ReplaceAll(req.URL.Host, ".", "_"), time.Now().UnixMilli(), rand.Uint32())
 	}

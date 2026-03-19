@@ -38,6 +38,25 @@ func FsGetDirectUploadInfo(c *gin.Context) {
 		common.ErrorResp(c, err, 403)
 		return
 	}
+	filePathHeader := c.GetHeader("File-Path")
+	if filePathHeader == "" {
+		common.ErrorStrResp(c, "missing File-Path header", 400)
+		return
+	}
+	headerPath, err := url.PathUnescape(filePathHeader)
+	if err != nil {
+		common.ErrorResp(c, err, 400)
+		return
+	}
+	headerPath, err = user.JoinPath(headerPath)
+	if err != nil {
+		common.ErrorResp(c, err, 403)
+		return
+	}
+	if headerPath != path {
+		common.ErrorStrResp(c, "File-Path header does not match request path", 403)
+		return
+	}
 	overwrite := c.GetHeader("Overwrite") != "false"
 	if !overwrite {
 		if res, _ := fs.Get(c.Request.Context(), path, &fs.GetArgs{NoLog: true}); res != nil {

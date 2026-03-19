@@ -12,7 +12,10 @@ import (
 )
 
 func (b *s3Backend) entryListR(bucket, fdPath, name string, addPrefix bool, response *gofakes3.ObjectList) error {
-	fp := path.Join(bucket, fdPath)
+	fp, err := joinBucketObjectPath(bucket, fdPath)
+	if err != nil {
+		return gofakes3.ErrNoSuchKey
+	}
 
 	dirEntries, err := getDirEntries(fp)
 	if err != nil {

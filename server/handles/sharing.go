@@ -38,9 +38,6 @@ func SharingGet(c *gin.Context, req *FsGetReq) {
 	if !obj.IsDir() {
 		fakePath := fmt.Sprintf("/%s/%s", sid, path)
 		url = fmt.Sprintf("%s/sd%s", common.GetApiUrl(c), utils.EncodePath(fakePath, true))
-		if s.Pwd != "" {
-			url += "?pwd=" + s.Pwd
-		}
 	}
 	thumb, _ := model.GetThumb(obj)
 	common.SuccessResp(c, FsGetResp{
@@ -133,9 +130,6 @@ func SharingArchiveMeta(c *gin.Context, req *ArchiveMetaReq) {
 	_ = countAccess(c.ClientIP(), s)
 	fakePath := fmt.Sprintf("/%s/%s", sid, path)
 	url := fmt.Sprintf("%s/sad%s", common.GetApiUrl(c), utils.EncodePath(fakePath, true))
-	if s.Pwd != "" {
-		url += "?pwd=" + s.Pwd
-	}
 	common.SuccessResp(c, ArchiveMetaResp{
 		Comment:     ret.GetComment(),
 		IsEncrypted: ret.IsEncrypted(),
@@ -352,8 +346,30 @@ func dealErrorPage(c *gin.Context, err error) bool {
 
 type SharingResp struct {
 	*model.Sharing
+	HasPwd      bool   `json:"has_pwd"`
 	CreatorName string `json:"creator"`
 	CreatorRole int    `json:"creator_role"`
+}
+
+func toSharingResp(s *model.Sharing) SharingResp {
+	maskedSharing := *s
+	if s.SharingDB != nil {
+		maskedDB := *s.SharingDB
+		maskedDB.Pwd = ""
+		maskedSharing.SharingDB = &maskedDB
+	}
+	creatorName := ""
+	creatorRole := 0
+	if s.Creator != nil {
+		creatorName = s.Creator.Username
+		creatorRole = s.Creator.Role
+	}
+	return SharingResp{
+		Sharing:     &maskedSharing,
+		HasPwd:      s.Pwd != "",
+		CreatorName: creatorName,
+		CreatorRole: creatorRole,
+	}
 }
 
 func GetSharing(c *gin.Context) {
@@ -364,11 +380,7 @@ func GetSharing(c *gin.Context) {
 		common.ErrorStrResp(c, "sharing not found", 404)
 		return
 	}
-	common.SuccessResp(c, SharingResp{
-		Sharing:     s,
-		CreatorName: s.Creator.Username,
-		CreatorRole: s.Creator.Role,
-	})
+	common.SuccessResp(c, toSharingResp(s))
 }
 
 func ListSharings(c *gin.Context) {
@@ -393,11 +405,7 @@ func ListSharings(c *gin.Context) {
 	}
 	common.SuccessResp(c, common.PageResp{
 		Content: utils.MustSliceConvert(sharings, func(s model.Sharing) SharingResp {
-			return SharingResp{
-				Sharing:     &s,
-				CreatorName: s.Creator.Username,
-				CreatorRole: s.Creator.Role,
-			}
+			return toSharingResp(&s)
 		}),
 		Total: total,
 	})
@@ -447,7 +455,7 @@ func UpdateSharing(c *gin.Context) {
 	for i, s := range req.Files {
 		s = utils.FixAndCleanPath(s)
 		req.Files[i] = s
-		if !reqUser.IsAdmin() && !strings.HasPrefix(s, user.BasePath) {
+		if !reqUser.IsAdmin() && !utils.IsSubPath(user.BasePath, s) {
 			common.ErrorStrResp(c, fmt.Sprintf("permission denied to share path [%s]", s), 500)
 			return
 		}
@@ -463,9 +471,13 @@ func UpdateSharing(c *gin.Context) {
 	s.Files = req.Files
 	s.Expires = req.Expires
 	s.Pwd = req.Pwd
-	s.Accessed = req.Accessed
+	if reqUser.IsAdmin() {
+		s.Accessed = req.Accessed
+	}
 	s.MaxAccessed = req.MaxAccessed
-	s.Disabled = req.Disabled
+	if reqUser.IsAdmin() {
+		s.Disabled = req.Disabled
+	}
 	s.Sort = req.Sort
 	s.Header = req.Header
 	s.Readme = req.Readme
@@ -474,11 +486,7 @@ func UpdateSharing(c *gin.Context) {
 	if err = op.UpdateSharing(s); err != nil {
 		common.ErrorResp(c, err, 500)
 	} else {
-		common.SuccessResp(c, SharingResp{
-			Sharing:     s,
-			CreatorName: s.Creator.Username,
-			CreatorRole: s.Creator.Role,
-		})
+		common.SuccessResp(c, toSharingResp(s))
 	}
 }
 
@@ -511,7 +519,7 @@ func CreateSharing(c *gin.Context) {
 	for i, s := range req.Files {
 		s = utils.FixAndCleanPath(s)
 		req.Files[i] = s
-		if !reqUser.IsAdmin() && !strings.HasPrefix(s, user.BasePath) {
+		if !reqUser.IsAdmin() && !utils.IsSubPath(user.BasePath, s) {
 			common.ErrorStrResp(c, fmt.Sprintf("permission denied to share path [%s]", s), 500)
 			return
 		}
@@ -521,9 +529,9 @@ func CreateSharing(c *gin.Context) {
 			ID:          req.ID,
 			Expires:     req.Expires,
 			Pwd:         req.Pwd,
-			Accessed:    req.Accessed,
+			Accessed:    0,
 			MaxAccessed: req.MaxAccessed,
-			Disabled:    req.Disabled,
+			Disabled:    reqUser.IsAdmin() && req.Disabled,
 			Sort:        req.Sort,
 			Remark:      req.Remark,
 			Readme:      req.Readme,
@@ -537,11 +545,7 @@ func CreateSharing(c *gin.Context) {
 		common.ErrorResp(c, err, 500)
 	} else {
 		s.ID = id
-		common.SuccessResp(c, SharingResp{
-			Sharing:     s,
-			CreatorName: s.Creator.Username,
-			CreatorRole: s.Creator.Role,
-		})
+		common.SuccessResp(c, toSharingResp(s))
 	}
 }
 

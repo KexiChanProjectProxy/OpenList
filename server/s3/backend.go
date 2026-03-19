@@ -108,7 +108,10 @@ func (b *s3Backend) HeadObject(ctx context.Context, bucketName, objectName strin
 	}
 	bucketPath := bucket.Path
 
-	fp := path.Join(bucketPath, objectName)
+	fp, err := joinBucketObjectPath(bucketPath, objectName)
+	if err != nil {
+		return nil, gofakes3.KeyNotFound(objectName)
+	}
 	fmeta, _ := op.GetNearestMeta(fp)
 	node, err := fs.Get(context.WithValue(ctx, conf.MetaKey, fmeta), fp, &fs.GetArgs{})
 	if err != nil {
@@ -151,7 +154,10 @@ func (b *s3Backend) GetObject(ctx context.Context, bucketName, objectName string
 	}
 	bucketPath := bucket.Path
 
-	fp := path.Join(bucketPath, objectName)
+	fp, err := joinBucketObjectPath(bucketPath, objectName)
+	if err != nil {
+		return nil, gofakes3.KeyNotFound(objectName)
+	}
 	fmeta, _ := op.GetNearestMeta(fp)
 	node, err := fs.Get(context.WithValue(ctx, conf.MetaKey, fmeta), fp, &fs.GetArgs{})
 	if err != nil {
@@ -241,7 +247,10 @@ func (b *s3Backend) PutObject(
 	isDir := strings.HasSuffix(objectName, "/")
 	log.Debugf("isDir: %v", isDir)
 
-	fp := path.Join(bucketPath, objectName)
+	fp, err := joinBucketObjectPath(bucketPath, objectName)
+	if err != nil {
+		return result, gofakes3.KeyNotFound(objectName)
+	}
 	log.Debugf("fp: %s, bucketPath: %s, objectName: %s", fp, bucketPath, objectName)
 
 	var reqPath string
@@ -351,7 +360,10 @@ func (b *s3Backend) deleteObject(ctx context.Context, bucketName, objectName str
 	}
 	bucketPath := bucket.Path
 
-	fp := path.Join(bucketPath, objectName)
+	fp, err := joinBucketObjectPath(bucketPath, objectName)
+	if err != nil {
+		return nil
+	}
 	fmeta, _ := op.GetNearestMeta(fp)
 	// S3 does not report an error when attemping to delete a key that does not exist, so
 	// we need to skip IsNotExist errors.
@@ -400,7 +412,10 @@ func (b *s3Backend) CopyObject(ctx context.Context, srcBucket, srcKey, dstBucket
 	}
 	srcBucketPath := srcB.Path
 
-	srcFp := path.Join(srcBucketPath, srcKey)
+	srcFp, err := joinBucketObjectPath(srcBucketPath, srcKey)
+	if err != nil {
+		return result, gofakes3.KeyNotFound(srcKey)
+	}
 	fmeta, _ := op.GetNearestMeta(srcFp)
 	srcNode, err := fs.Get(context.WithValue(ctx, conf.MetaKey, fmeta), srcFp, &fs.GetArgs{})
 

@@ -5,6 +5,7 @@ package s3
 import (
 	"context"
 	"encoding/json"
+	"path"
 	"strings"
 
 	"github.com/OpenListTeam/OpenList/v4/internal/conf"
@@ -13,6 +14,7 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/internal/model"
 	"github.com/OpenListTeam/OpenList/v4/internal/op"
 	"github.com/OpenListTeam/OpenList/v4/internal/setting"
+	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	"github.com/itsHenry35/gofakes3"
 )
 
@@ -116,6 +118,14 @@ func prefixParser(p *gofakes3.Prefix) (path, remaining string) {
 		return "", p.Prefix
 	}
 	return p.Prefix[:idx], p.Prefix[idx+1:]
+}
+
+func joinBucketObjectPath(bucketPath, objectPath string) (string, error) {
+	joined := path.Join(bucketPath, objectPath)
+	if !utils.IsSubPath(bucketPath, joined) {
+		return "", gofakes3.ErrNoSuchKey
+	}
+	return joined, nil
 }
 
 // // FIXME this could be implemented by VFS.MkdirAll()

@@ -10,6 +10,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func sanitizeUserResp(user *model.User) *model.User {
+	cloned := *user
+	cloned.Password = ""
+	return &cloned
+}
+
 func ListUsers(c *gin.Context) {
 	var req model.PageReq
 	if err := c.ShouldBind(&req); err != nil {
@@ -24,8 +30,15 @@ func ListUsers(c *gin.Context) {
 		return
 	}
 	common.SuccessResp(c, common.PageResp{
-		Content: users,
-		Total:   total,
+		Content: func() []*model.User {
+			ret := make([]*model.User, 0, len(users))
+			for _, user := range users {
+				userCopy := user
+				ret = append(ret, sanitizeUserResp(&userCopy))
+			}
+			return ret
+		}(),
+		Total: total,
 	})
 }
 
@@ -111,7 +124,7 @@ func GetUser(c *gin.Context) {
 		common.ErrorResp(c, err, 500, true)
 		return
 	}
-	common.SuccessResp(c, user)
+	common.SuccessResp(c, sanitizeUserResp(user))
 }
 
 func Cancel2FAById(c *gin.Context) {

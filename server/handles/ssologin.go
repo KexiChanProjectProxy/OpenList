@@ -2,6 +2,7 @@ package handles
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -46,6 +47,40 @@ func verifyState(clientID, ip, state string) bool {
 	return ok && value == ip
 }
 
+func verifyAndConsumeState(clientID, ip, state string) bool {
+	if !verifyState(clientID, ip, state) {
+		return false
+	}
+	stateCache.Del(_keyState(clientID, state))
+	return true
+}
+
+func getPostMessageOrigin(c *gin.Context) string {
+	u, err := url.Parse(common.GetApiUrl(c))
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
+}
+
+func writeSSOMessagePage(c *gin.Context, payload map[string]string) {
+	body, _ := json.Marshal(payload)
+	origin := getPostMessageOrigin(c)
+	html := fmt.Sprintf(`<!DOCTYPE html>
+			<head></head>
+			<body>
+			<script>
+			const payload = %s;
+			const targetOrigin = %q;
+			if (window.opener && targetOrigin) {
+				window.opener.postMessage(payload, targetOrigin);
+			}
+			window.close();
+			</script>
+			</body>`, string(body), origin)
+	c.Data(200, "text/html; charset=utf-8", []byte(html))
+}
+
 func ssoRedirectUri(c *gin.Context, useCompatibility bool, method string) string {
 	if useCompatibility {
 		return common.GetApiUrl(c) + "/api/auth/" + method
@@ -70,10 +105,12 @@ func SSOLoginRedirect(c *gin.Context) {
 		common.ErrorStrResp(c, "no method provided", 400)
 		return
 	}
+	state := generateState(clientId, c.ClientIP())
 	redirectUri := ssoRedirectUri(c, useCompatibility, method)
 	urlValues.Add("response_type", "code")
 	urlValues.Add("redirect_uri", redirectUri)
 	urlValues.Add("client_id", clientId)
+	urlValues.Add("state", state)
 	switch platform {
 	case "Github":
 		rUrl = "https://github.com/login/oauth/authorize?"
@@ -94,14 +131,12 @@ func SSOLoginRedirect(c *gin.Context) {
 		endpoint := strings.TrimSuffix(setting.GetStr(conf.SSOEndpointName), "/")
 		rUrl = endpoint + "/login/oauth/authorize?"
 		urlValues.Add("scope", "profile")
-		urlValues.Add("state", endpoint)
 	case "OIDC":
 		oauth2Config, err := GetOIDCClient(c, useCompatibility, redirectUri, method)
 		if err != nil {
 			common.ErrorStrResp(c, err.Error(), 400)
 			return
 		}
-		state := generateState(clientId, c.ClientIP())
 		c.Redirect(http.StatusFound, oauth2Config.AuthCodeURL(state))
 		return
 	default:
@@ -151,13 +186,14 @@ func autoRegister(username, userID string, err error) (*model.User, error) {
 	user := &model.User{
 		ID:         0,
 		Username:   username,
-		Password:   random.String(16),
+		Password:   "",
 		Permission: int32(setting.GetInt(conf.SSODefaultPermission, 0)),
 		BasePath:   setting.GetStr(conf.SSODefaultDir),
 		Role:       0,
 		Disabled:   false,
 		SsoID:      userID,
 	}
+	user.SetPassword(random.String(32))
 	if err = db.CreateUser(user); err != nil {
 		if strings.HasPrefix(err.Error(), "UNIQUE constraint failed") && strings.HasSuffix(err.Error(), "username") {
 			user.Username = user.Username + "_" + userID
@@ -201,7 +237,7 @@ func OIDCLoginCallback(c *gin.Context) {
 		common.ErrorResp(c, err, 400)
 		return
 	}
-	if !verifyState(clientId, c.ClientIP(), c.Query("state")) {
+	if !verifyAndConsumeState(clientId, c.ClientIP(), c.Query("state")) {
 		common.ErrorStrResp(c, "incorrect or expired state parameter", 400)
 		return
 	}
@@ -239,15 +275,7 @@ func OIDCLoginCallback(c *gin.Context) {
 			c.Redirect(302, common.GetApiUrl(c)+"/@manage?sso_id="+userID)
 			return
 		}
-		html := fmt.Sprintf(`<!DOCTYPE html>
-				<head></head>
-				<body>
-				<script>
-				window.opener.postMessage({"sso_id": "%s"}, "*")
-				window.close()
-				</script>
-				</body>`, userID)
-		c.Data(200, "text/html; charset=utf-8", []byte(html))
+		writeSSOMessagePage(c, map[string]string{"sso_id": userID})
 		return
 	}
 	if method == "sso_get_token" {
@@ -268,15 +296,7 @@ func OIDCLoginCallback(c *gin.Context) {
 			c.Redirect(302, common.GetApiUrl(c)+"/@login?token="+token)
 			return
 		}
-		html := fmt.Sprintf(`<!DOCTYPE html>
-				<head></head>
-				<body>
-				<script>
-				window.opener.postMessage({"token":"%s"}, "*")
-				window.close()
-				</script>
-				</body>`, token)
-		c.Data(200, "text/html; charset=utf-8", []byte(html))
+		writeSSOMessagePage(c, map[string]string{"token": token})
 		return
 	}
 }
@@ -347,6 +367,10 @@ func SSOLoginCallback(c *gin.Context) {
 		common.ErrorStrResp(c, "invalid platform", 400)
 		return
 	}
+	if !verifyAndConsumeState(clientId, c.ClientIP(), c.Query("state")) {
+		common.ErrorStrResp(c, "incorrect or expired state parameter", 400)
+		return
+	}
 	callbackCode := c.Query(authField)
 	if callbackCode == "" {
 		common.ErrorStrResp(c, "No code provided", 400)
@@ -406,15 +430,7 @@ func SSOLoginCallback(c *gin.Context) {
 			c.Redirect(302, common.GetApiUrl(c)+"/@manage?sso_id="+userID)
 			return
 		}
-		html := fmt.Sprintf(`<!DOCTYPE html>
-				<head></head>
-				<body>
-				<script>
-				window.opener.postMessage({"sso_id": "%s"}, "*")
-				window.close()
-				</script>
-				</body>`, userID)
-		c.Data(200, "text/html; charset=utf-8", []byte(html))
+		writeSSOMessagePage(c, map[string]string{"sso_id": userID})
 		return
 	}
 	username := utils.Json.Get(resp.Body(), usernameField).ToString()
@@ -435,13 +451,5 @@ func SSOLoginCallback(c *gin.Context) {
 		c.Redirect(302, common.GetApiUrl(c)+"/@login?token="+token)
 		return
 	}
-	html := fmt.Sprintf(`<!DOCTYPE html>
-							<head></head>
-							<body>
-							<script>
-							window.opener.postMessage({"token":"%s"}, "*")
-							window.close()
-							</script>
-							</body>`, token)
-	c.Data(200, "text/html; charset=utf-8", []byte(html))
+	writeSSOMessagePage(c, map[string]string{"token": token})
 }

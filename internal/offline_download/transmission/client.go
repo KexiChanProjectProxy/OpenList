@@ -74,6 +74,9 @@ func (t *Transmission) IsReady() bool {
 }
 
 func (t *Transmission) AddURL(args *tool.AddUrlArgs) (string, error) {
+	if err := tool.ValidateURLForTool(t.Name(), args.Url); err != nil {
+		return "", err
+	}
 	endpoint, err := url.Parse(args.Url)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse transmission uri")

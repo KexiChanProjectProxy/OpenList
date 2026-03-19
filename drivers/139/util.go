@@ -767,9 +767,7 @@ func (d *Yun139) step1_password_login() (string, error) {
 
 	// 密码 SHA1 哈希
 	hashedPassword := sha1Hash(fmt.Sprintf("fetion.com.cn:%s", d.Password))
-	log.Debugf("DEBUG: 原始密码: %s", d.Password)
-	log.Debugf("DEBUG: SHA1 输入: fetion.com.cn:%s", d.Password)
-	log.Debugf("DEBUG: 生成的 Password 哈希: %s", hashedPassword)
+	log.Debugf("DEBUG: generated password hash for login request")
 
 	cguid := strconv.FormatInt(time.Now().UnixMilli(), 10) // 随机生成 cguid
 
@@ -805,8 +803,8 @@ func (d *Yun139) step1_password_login() (string, error) {
 	loginData.Set("authType", "2")
 
 	log.Debugf("DEBUG: 登录请求 URL: %s", loginURL)
-	log.Debugf("DEBUG: 登录请求 Headers: %+v", loginHeaders)
-	log.Debugf("DEBUG: 登录请求 Body: %s", loginData.Encode())
+	log.Debugf("DEBUG: 登录请求 Headers prepared")
+	log.Debugf("DEBUG: 登录请求 Body prepared")
 
 	// 设置客户端不跟随重定向
 	client := base.RestyClient.SetRedirectPolicy(resty.NoRedirectPolicy())
@@ -827,7 +825,7 @@ func (d *Yun139) step1_password_login() (string, error) {
 	}
 	// 恢复客户端的默认重定向策略，以免影响后续请求
 	base.RestyClient.SetRedirectPolicy(resty.FlexibleRedirectPolicy(10))
-	log.Debugf("DEBUG: 登录响应 Headers: %+v", res.Header())
+	log.Debugf("DEBUG: 登录响应 Headers received")
 
 	var sid, extractedCguid string
 
@@ -875,7 +873,7 @@ func (d *Yun139) step1_password_login() (string, error) {
 		cookieStrings = append(cookieStrings, cookie.Name+"="+cookie.Value)
 	}
 	cookieStr := strings.Join(cookieStrings, "; ")
-	log.Debugf("DEBUG: 提取到的 Cookies: %s", cookieStr)
+	log.Debugf("DEBUG: 提取到登录 cookies")
 	d.MailCookies = cookieStr
 
 	return sid, nil
@@ -910,7 +908,7 @@ func (d *Yun139) step2_get_single_token(sid string) (string, error) {
 	}
 
 	log.Debugf("DEBUG: 换passid 请求 URL: %s", exchangeArtifactURL)
-	log.Debugf("DEBUG: 换passid 请求 Headers: %+v", exchangePassidHeaders)
+	log.Debugf("DEBUG: 换passid 请求 Headers prepared")
 
 	res, err := base.RestyClient.R().
 		SetHeaders(exchangePassidHeaders).
@@ -921,14 +919,14 @@ func (d *Yun139) step2_get_single_token(sid string) (string, error) {
 	}
 
 	log.Debugf("DEBUG: 换passid 响应 Status Code: %d", res.StatusCode())
-	log.Debugf("DEBUG: 换passid 响应 Headers: %+v", res.Header())
-	log.Debugf("DEBUG: 换passid 响应 Body: %s...", res.String()[:min(len(res.String()), 500)])
+	log.Debugf("DEBUG: 换passid 响应 Headers received")
+	log.Debugf("DEBUG: 换passid 响应 Body received")
 
 	dycpwd := jsoniter.Get(res.Body(), "var", "artifact").ToString()
 	if dycpwd == "" {
 		return "", errors.New("failed to extract dycpwd from artifact exchange response")
 	}
-	log.Debugf("DEBUG: 提取到 dycpwd: %s", dycpwd)
+	log.Debugf("DEBUG: extracted dycpwd token")
 
 	return dycpwd, nil
 }
@@ -1085,7 +1083,7 @@ func (d *Yun139) yun139EncryptedRequest(url string, body interface{}, headers ma
 	if err != nil {
 		return nil, fmt.Errorf("yun139EncryptedRequest: failed to marshal and sort body: %w", err)
 	}
-	log.Debugf("yun139EncryptedRequest: Request Body (plaintext): %s", sortedJson)
+	log.Debugf("yun139EncryptedRequest: request body prepared")
 
 	// 3. Encrypt the body using AES/CBC
 	iv := make([]byte, 16) // 16 bytes for AES-128
@@ -1138,7 +1136,7 @@ func (d *Yun139) yun139EncryptedRequest(url string, body interface{}, headers ma
 		}
 	}
 
-	log.Debugf("yun139EncryptedRequest: Response Body (decrypted): %s", string(decryptedBytes))
+	log.Debugf("yun139EncryptedRequest: response body decrypted")
 
 	// 6. Unmarshal to the final response struct
 	if resp != nil {
@@ -1208,14 +1206,14 @@ func (d *Yun139) step3_third_party_login(dycpwd string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("step3 response layer2 aes ecb decrypt failed: %w", err)
 	}
-	log.Debugf("DEBUG: 最终解密结果: %s", string(finalJsonStrBytes))
+	log.Debugf("DEBUG: 完成最终解密")
 
 	// 提取 authToken
 	authToken := jsoniter.Get(finalJsonStrBytes, "authToken").ToString()
 	if authToken == "" {
 		return "", errors.New("failed to extract authToken from final decryption result")
 	}
-	log.Debugf("DEBUG: 提取到 authToken: %s", authToken)
+	log.Debugf("DEBUG: extracted auth token")
 
 	// 提取 account 和 userDomainId
 	account := jsoniter.Get(finalJsonStrBytes, "account").ToString()
@@ -1245,7 +1243,7 @@ func (d *Yun139) loginWithPassword() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Infof("Step 2 success, token: %s", token)
+	log.Infof("Step 2 success")
 
 	newAuth, err := d.step3_third_party_login(token)
 	if err != nil {

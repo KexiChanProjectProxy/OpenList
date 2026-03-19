@@ -66,7 +66,6 @@ func WebDAVAuth(c *gin.Context) {
 	username, password, ok := c.Request.BasicAuth()
 	if !ok {
 		bt := c.GetHeader("Authorization")
-		log.Debugf("[webdav auth] token: %s", bt)
 		if strings.HasPrefix(bt, "Bearer") {
 			bt = strings.TrimPrefix(bt, "Bearer ")
 			token := setting.GetStr(conf.Token)
@@ -138,6 +137,11 @@ func WebDAVAuth(c *gin.Context) {
 		return
 	}
 	if c.Request.Method == "PROPPATCH" && !user.CanWebdavManage() {
+		c.Status(http.StatusForbidden)
+		c.Abort()
+		return
+	}
+	if (c.Request.Method == "LOCK" || c.Request.Method == "UNLOCK") && !user.CanWebdavManage() {
 		c.Status(http.StatusForbidden)
 		c.Abort()
 		return
