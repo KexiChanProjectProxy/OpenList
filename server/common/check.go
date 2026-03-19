@@ -3,6 +3,7 @@ package common
 import (
 	"path"
 	"strings"
+	"time"
 
 	"github.com/OpenListTeam/OpenList/v4/internal/conf"
 	"github.com/OpenListTeam/OpenList/v4/internal/driver"
@@ -36,7 +37,11 @@ func CanAccess(user *model.User, meta *model.Meta, reqPath string, password stri
 	if meta != nil && !user.CanSeeHides() && meta.Hide != "" &&
 		IsApply(meta.Path, path.Dir(reqPath), meta.HSub) { // the meta should apply to the parent of current path
 		for _, hide := range strings.Split(meta.Hide, "\n") {
-			re := regexp2.MustCompile(hide, regexp2.None)
+			re, err := regexp2.Compile(hide, regexp2.None)
+			if err != nil {
+				continue
+			}
+			re.MatchTimeout = 2 * time.Second
 			if isMatch, _ := re.MatchString(path.Base(reqPath)); isMatch {
 				return false
 			}

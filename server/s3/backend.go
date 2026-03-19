@@ -102,6 +102,9 @@ func (b *s3Backend) ListBucket(ctx context.Context, bucketName string, prefix *g
 //
 // Note that the metadata is not supported yet.
 func (b *s3Backend) HeadObject(ctx context.Context, bucketName, objectName string) (*gofakes3.Object, error) {
+	if strings.TrimSpace(objectName) == "" {
+		return nil, gofakes3.KeyNotFound(objectName)
+	}
 	bucket, err := getBucketByName(bucketName)
 	if err != nil {
 		return nil, err
@@ -148,6 +151,9 @@ func (b *s3Backend) HeadObject(ctx context.Context, bucketName, objectName strin
 
 // GetObject fetchs the object from the filesystem.
 func (b *s3Backend) GetObject(ctx context.Context, bucketName, objectName string, rangeRequest *gofakes3.ObjectRangeRequest) (s3Obj *gofakes3.Object, err error) {
+	if strings.TrimSpace(objectName) == "" {
+		return nil, gofakes3.KeyNotFound(objectName)
+	}
 	bucket, err := getBucketByName(bucketName)
 	if err != nil {
 		return nil, err
@@ -238,6 +244,9 @@ func (b *s3Backend) PutObject(
 	meta map[string]string,
 	input io.Reader, size int64,
 ) (result gofakes3.PutObjectResult, err error) {
+	if strings.TrimSpace(objectName) == "" {
+		return result, gofakes3.KeyNotFound(objectName)
+	}
 	bucket, err := getBucketByName(bucketName)
 	if err != nil {
 		return result, err
@@ -354,6 +363,9 @@ func (b *s3Backend) DeleteObject(ctx context.Context, bucketName, objectName str
 
 // deleteObject deletes the object from the filesystem.
 func (b *s3Backend) deleteObject(ctx context.Context, bucketName, objectName string) error {
+	if strings.TrimSpace(objectName) == "" {
+		return nil
+	}
 	bucket, err := getBucketByName(bucketName)
 	if err != nil {
 		return err
@@ -401,6 +413,9 @@ func (b *s3Backend) BucketExists(ctx context.Context, name string) (exists bool,
 
 // CopyObject copy specified object from srcKey to dstKey.
 func (b *s3Backend) CopyObject(ctx context.Context, srcBucket, srcKey, dstBucket, dstKey string, meta map[string]string) (result gofakes3.CopyObjectResult, err error) {
+	if strings.TrimSpace(srcKey) == "" || strings.TrimSpace(dstKey) == "" {
+		return result, gofakes3.KeyNotFound("")
+	}
 	if srcBucket == dstBucket && srcKey == dstKey {
 		//TODO: update meta
 		return result, nil

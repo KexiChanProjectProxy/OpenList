@@ -25,7 +25,7 @@ func WebDav(dav *gin.RouterGroup) {
 		Prefix:     path.Join(conf.URL.Path, "/dav"),
 		LockSystem: webdav.NewMemLS(),
 		Logger: func(request *http.Request, err error) {
-			log.Errorf("%s %s %+v", request.Method, request.URL.Path, err)
+			log.Errorf("webdav request failed: method=%s err=%v", request.Method, err)
 		},
 	}
 	dav.Use(WebDAVAuth)
@@ -33,14 +33,14 @@ func WebDav(dav *gin.RouterGroup) {
 	downloadLimiter := middlewares.DownloadRateLimiter(stream.ClientDownloadLimit)
 	dav.Any("/*path", uploadLimiter, downloadLimiter, ServeWebDAV)
 	dav.Any("", uploadLimiter, downloadLimiter, ServeWebDAV)
-	dav.Handle("PROPFIND", "/*path", ServeWebDAV)
-	dav.Handle("PROPFIND", "", ServeWebDAV)
-	dav.Handle("MKCOL", "/*path", ServeWebDAV)
-	dav.Handle("LOCK", "/*path", ServeWebDAV)
-	dav.Handle("UNLOCK", "/*path", ServeWebDAV)
-	dav.Handle("PROPPATCH", "/*path", ServeWebDAV)
-	dav.Handle("COPY", "/*path", ServeWebDAV)
-	dav.Handle("MOVE", "/*path", ServeWebDAV)
+	dav.Handle("PROPFIND", "/*path", uploadLimiter, downloadLimiter, ServeWebDAV)
+	dav.Handle("PROPFIND", "", uploadLimiter, downloadLimiter, ServeWebDAV)
+	dav.Handle("MKCOL", "/*path", uploadLimiter, downloadLimiter, ServeWebDAV)
+	dav.Handle("LOCK", "/*path", uploadLimiter, downloadLimiter, ServeWebDAV)
+	dav.Handle("UNLOCK", "/*path", uploadLimiter, downloadLimiter, ServeWebDAV)
+	dav.Handle("PROPPATCH", "/*path", uploadLimiter, downloadLimiter, ServeWebDAV)
+	dav.Handle("COPY", "/*path", uploadLimiter, downloadLimiter, ServeWebDAV)
+	dav.Handle("MOVE", "/*path", uploadLimiter, downloadLimiter, ServeWebDAV)
 }
 
 func ServeWebDAV(c *gin.Context) {

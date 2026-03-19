@@ -121,7 +121,14 @@ func prefixParser(p *gofakes3.Prefix) (path, remaining string) {
 }
 
 func joinBucketObjectPath(bucketPath, objectPath string) (string, error) {
-	joined := path.Join(bucketPath, objectPath)
+	cleanObjectPath := strings.TrimSpace(objectPath)
+	if cleanObjectPath == "" {
+		return bucketPath, nil
+	}
+	if cleanObjectPath == "." || cleanObjectPath == "/" {
+		return "", gofakes3.ErrNoSuchKey
+	}
+	joined := path.Join(bucketPath, cleanObjectPath)
 	if !utils.IsSubPath(bucketPath, joined) {
 		return "", gofakes3.ErrNoSuchKey
 	}

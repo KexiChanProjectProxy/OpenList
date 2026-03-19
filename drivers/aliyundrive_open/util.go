@@ -131,7 +131,7 @@ func (d *AliyundriveOpen) refreshToken(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("[ali_open] token exchange: %s -> %s", d.RefreshToken, refresh)
+	log.Infof("[ali_open] token exchange succeeded")
 	d.RefreshToken, d.AccessToken = refresh, access
 	op.MustSaveDriverStorage(d)
 	return nil
@@ -161,7 +161,7 @@ func (d *AliyundriveOpen) requestReturnErrResp(ctx context.Context, limitTy limi
 	res, err := req.Execute(method, API_URL+uri)
 	if err != nil {
 		if res != nil {
-			log.Errorf("[aliyundrive_open] request error: %s", res.String())
+			log.Errorf("[aliyundrive_open] request error, status=%d", res.StatusCode())
 		}
 		return nil, err, nil
 	}

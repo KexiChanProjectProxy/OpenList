@@ -56,11 +56,21 @@ func verifyAndConsumeState(clientID, ip, state string) bool {
 }
 
 func getPostMessageOrigin(c *gin.Context) string {
+	if strings.HasPrefix(conf.Conf.SiteURL, "http://") || strings.HasPrefix(conf.Conf.SiteURL, "https://") {
+		u, err := url.Parse(conf.Conf.SiteURL)
+		if err == nil && u.Scheme != "" && u.Host != "" {
+			return u.Scheme + "://" + u.Host
+		}
+	}
 	u, err := url.Parse(common.GetApiUrl(c))
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return ""
 	}
 	return u.Scheme + "://" + u.Host
+}
+
+func compatibilityRedirect(basePath, key, value string) string {
+	return basePath + "#" + key + "=" + url.QueryEscape(value)
 }
 
 func writeSSOMessagePage(c *gin.Context, payload map[string]string) {
@@ -272,7 +282,7 @@ func OIDCLoginCallback(c *gin.Context) {
 	}
 	if method == "get_sso_id" {
 		if useCompatibility {
-			c.Redirect(302, common.GetApiUrl(c)+"/@manage?sso_id="+userID)
+			c.Redirect(302, compatibilityRedirect(common.GetApiUrl(c)+"/@manage", "sso_id", userID))
 			return
 		}
 		writeSSOMessagePage(c, map[string]string{"sso_id": userID})
@@ -293,7 +303,7 @@ func OIDCLoginCallback(c *gin.Context) {
 			return
 		}
 		if useCompatibility {
-			c.Redirect(302, common.GetApiUrl(c)+"/@login?token="+token)
+			c.Redirect(302, compatibilityRedirect(common.GetApiUrl(c)+"/@login", "token", token))
 			return
 		}
 		writeSSOMessagePage(c, map[string]string{"token": token})
@@ -427,7 +437,7 @@ func SSOLoginCallback(c *gin.Context) {
 	}
 	if argument == "get_sso_id" {
 		if usecompatibility {
-			c.Redirect(302, common.GetApiUrl(c)+"/@manage?sso_id="+userID)
+			c.Redirect(302, compatibilityRedirect(common.GetApiUrl(c)+"/@manage", "sso_id", userID))
 			return
 		}
 		writeSSOMessagePage(c, map[string]string{"sso_id": userID})
@@ -448,7 +458,7 @@ func SSOLoginCallback(c *gin.Context) {
 		return
 	}
 	if usecompatibility {
-		c.Redirect(302, common.GetApiUrl(c)+"/@login?token="+token)
+		c.Redirect(302, compatibilityRedirect(common.GetApiUrl(c)+"/@login", "token", token))
 		return
 	}
 	writeSSOMessagePage(c, map[string]string{"token": token})

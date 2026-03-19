@@ -17,12 +17,12 @@ func GetApiUrlFromRequest(r *http.Request) string {
 	}
 	if r != nil {
 		protocol := "http"
-		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		if r.TLS != nil {
 			protocol = "https"
 		}
-		host := r.Header.Get("X-Forwarded-Host")
+		host := r.Host
 		if host == "" {
-			host = r.Host
+			host = r.Header.Get("Host")
 		}
 		api = fmt.Sprintf("%s://%s", protocol, stdpath.Join(host, api))
 	}

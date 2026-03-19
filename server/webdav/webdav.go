@@ -40,6 +40,8 @@ type Handler struct {
 	Logger func(*http.Request, error)
 }
 
+const maxWebDAVXMLBodySize = 1 << 20
+
 func (h *Handler) stripPrefix(p string) (string, int, error) {
 	if h.Prefix == "" {
 		return p, http.StatusOK, nil
@@ -202,15 +204,43 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) (status 
 	if err != nil {
 		return 403, err
 	}
-	allow := "OPTIONS, LOCK, PUT, MKCOL"
+	allowSet := map[string]struct{}{"OPTIONS": {}}
+	if user.CanWebdavRead() {
+		allowSet["PROPFIND"] = struct{}{}
+	}
 	if fi, err := fs.Get(ctx, reqPath, &fs.GetArgs{}); err == nil {
-		if fi.IsDir() {
-			allow = "OPTIONS, LOCK, DELETE, PROPPATCH, COPY, MOVE, UNLOCK, PROPFIND"
-		} else {
-			allow = "OPTIONS, LOCK, GET, HEAD, POST, DELETE, PROPPATCH, COPY, MOVE, UNLOCK, PROPFIND, PUT"
+		if !fi.IsDir() && user.CanWebdavRead() {
+			allowSet["GET"] = struct{}{}
+			allowSet["HEAD"] = struct{}{}
+			allowSet["POST"] = struct{}{}
+		}
+		if user.CanWebdavManage() {
+			allowSet["LOCK"] = struct{}{}
+			allowSet["UNLOCK"] = struct{}{}
+			allowSet["PROPPATCH"] = struct{}{}
+			if user.CanWrite() {
+				allowSet["PUT"] = struct{}{}
+				allowSet["MKCOL"] = struct{}{}
+			}
+			if user.CanRemove() {
+				allowSet["DELETE"] = struct{}{}
+			}
+			if user.CanCopy() {
+				allowSet["COPY"] = struct{}{}
+			}
+			if user.CanMove() || user.CanRename() {
+				allowSet["MOVE"] = struct{}{}
+			}
 		}
 	}
-	w.Header().Set("Allow", allow)
+	allowMethods := []string{"OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK", "PROPFIND", "PROPPATCH"}
+	allow := make([]string, 0, len(allowMethods))
+	for _, m := range allowMethods {
+		if _, ok := allowSet[m]; ok {
+			allow = append(allow, m)
+		}
+	}
+	w.Header().Set("Allow", strings.Join(allow, ", "))
 	// http://www.webdav.org/specs/rfc4918.html#dav.compliance.classes
 	w.Header().Set("DAV", "1, 2")
 	// http://msdn.microsoft.com/en-au/library/cc250217.aspx
@@ -522,6 +552,7 @@ func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) (status
 }
 
 func (h *Handler) handleLock(w http.ResponseWriter, r *http.Request) (retStatus int, retErr error) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxWebDAVXMLBodySize)
 	duration, err := parseTimeout(r.Header.Get("Timeout"))
 	if err != nil {
 		return http.StatusBadRequest, err
@@ -671,6 +702,7 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) (status
 			return http.StatusBadRequest, errInvalidDepth
 		}
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxWebDAVXMLBodySize)
 	pf, status, err := readPropfind(r.Body)
 	if err != nil {
 		return status, err
@@ -742,6 +774,7 @@ func (h *Handler) handleProppatch(w http.ResponseWriter, r *http.Request) (statu
 		}
 		return http.StatusMethodNotAllowed, err
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxWebDAVXMLBodySize)
 	patches, status, err := readProppatch(r.Body)
 	if err != nil {
 		return status, err

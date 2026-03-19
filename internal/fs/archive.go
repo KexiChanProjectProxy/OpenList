@@ -33,8 +33,12 @@ type ArchiveDownloadTask struct {
 }
 
 func (t *ArchiveDownloadTask) GetName() string {
-	return fmt.Sprintf("decompress [%s](%s)[%s] to [%s](%s) with password <%s>", t.SrcStorageMp, t.SrcActualPath,
-		t.InnerPath, t.DstStorageMp, t.DstActualPath, t.Password)
+	label := "without password"
+	if t.Password != "" {
+		label = "with password"
+	}
+	return fmt.Sprintf("decompress [%s](%s)[%s] to [%s](%s) %s", t.SrcStorageMp, t.SrcActualPath,
+		t.InnerPath, t.DstStorageMp, t.DstActualPath, label)
 }
 
 func (t *ArchiveDownloadTask) Run() error {

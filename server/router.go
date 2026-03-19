@@ -4,6 +4,7 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/cmd/flags"
 	"github.com/OpenListTeam/OpenList/v4/internal/conf"
 	"github.com/OpenListTeam/OpenList/v4/internal/message"
+	"github.com/OpenListTeam/OpenList/v4/internal/setting"
 	"github.com/OpenListTeam/OpenList/v4/internal/sign"
 	"github.com/OpenListTeam/OpenList/v4/internal/stream"
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
@@ -84,8 +85,10 @@ func Init(e *gin.Engine) {
 	// auth
 	api.GET("/auth/sso", handles.SSOLoginRedirect)
 	api.GET("/auth/sso_callback", handles.SSOLoginCallback)
-	api.GET("/auth/get_sso_id", handles.SSOLoginCallback)
-	api.GET("/auth/sso_get_token", handles.SSOLoginCallback)
+	if setting.GetBool(conf.SSOCompatibilityMode) {
+		api.GET("/auth/get_sso_id", handles.SSOLoginCallback)
+		api.GET("/auth/sso_get_token", handles.SSOLoginCallback)
+	}
 
 	// webauthn
 	api.GET("/authn/webauthn_begin_login", handles.BeginAuthnLogin)
@@ -199,10 +202,11 @@ func _fs(g *gin.RouterGroup) {
 	g.Any("/search", middlewares.SearchIndex, handles.Search)
 	g.Any("/other", handles.FsOther)
 	g.Any("/dirs", handles.FsDirs)
+	jsonBodyLimit := middlewares.RequestBodyLimit(2 << 20)
 	g.POST("/mkdir", handles.FsMkdir)
 	g.POST("/rename", handles.FsRename)
-	g.POST("/batch_rename", handles.FsBatchRename)
-	g.POST("/regex_rename", handles.FsRegexRename)
+	g.POST("/batch_rename", jsonBodyLimit, handles.FsBatchRename)
+	g.POST("/regex_rename", jsonBodyLimit, handles.FsRegexRename)
 	g.POST("/move", handles.FsMove)
 	g.POST("/recursive_move", handles.FsRecursiveMove)
 	g.POST("/copy", handles.FsCopy)

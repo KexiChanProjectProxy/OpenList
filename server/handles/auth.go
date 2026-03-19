@@ -115,7 +115,6 @@ func UpdateCurrent(c *gin.Context) {
 	if req.Password != "" {
 		user.SetPassword(req.Password)
 	}
-	user.SsoID = req.SsoID
 	if err := op.UpdateUser(user); err != nil {
 		common.ErrorResp(c, err, 500)
 	} else {

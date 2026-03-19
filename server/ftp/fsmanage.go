@@ -13,6 +13,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+func canAccessFTPPath(ctx context.Context, user *model.User, reqPath string) (bool, error) {
+	meta, err := op.GetNearestMeta(reqPath)
+	if err != nil {
+		if !errors.Is(errors.Cause(err), errs.MetaNotFound) {
+			return false, err
+		}
+	}
+	metaPass, _ := ctx.Value(conf.MetaPassKey).(string)
+	return common.CanAccess(user, meta, reqPath, metaPass), nil
+}
+
 func Mkdir(ctx context.Context, path string) error {
 	user := ctx.Value(conf.UserKey).(*model.User)
 	reqPath, err := user.JoinPath(path)
@@ -42,6 +53,13 @@ func Remove(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
+	canAccess, err := canAccessFTPPath(ctx, user, reqPath)
+	if err != nil {
+		return err
+	}
+	if !canAccess {
+		return errs.PermissionDenied
+	}
 	if err = RemoveStage(reqPath); !errors.Is(err, errs.ObjectNotFound) {
 		return err
 	}
@@ -54,9 +72,23 @@ func Rename(ctx context.Context, oldPath, newPath string) error {
 	if err != nil {
 		return err
 	}
+	canAccess, err := canAccessFTPPath(ctx, user, srcPath)
+	if err != nil {
+		return err
+	}
+	if !canAccess {
+		return errs.PermissionDenied
+	}
 	dstPath, err := user.JoinPath(newPath)
 	if err != nil {
 		return err
+	}
+	canAccess, err = canAccessFTPPath(ctx, user, dstPath)
+	if err != nil {
+		return err
+	}
+	if !canAccess {
+		return errs.PermissionDenied
 	}
 	srcDir, srcBase := stdpath.Split(srcPath)
 	dstDir, dstBase := stdpath.Split(dstPath)

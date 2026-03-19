@@ -228,7 +228,12 @@ func (om *ObjMerge) InitHideReg(hides string) {
 	rs := strings.Split(hides, "\n")
 	om.regs = make([]*regexp2.Regexp, 0, len(rs))
 	for _, r := range rs {
-		om.regs = append(om.regs, regexp2.MustCompile(r, regexp2.None))
+		re, err := regexp2.Compile(r, regexp2.None)
+		if err != nil {
+			continue
+		}
+		re.MatchTimeout = 2 * time.Second
+		om.regs = append(om.regs, re)
 	}
 }
 

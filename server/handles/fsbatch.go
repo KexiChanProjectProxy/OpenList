@@ -16,6 +16,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	maxBatchRenameObjects = 1000
+	maxRegexPatternLen    = 512
+	maxRegexReplaceLen    = 512
+)
+
 type RecursiveMoveReq struct {
 	SrcDir         string `json:"src_dir"`
 	DstDir         string `json:"dst_dir"`
@@ -149,6 +155,10 @@ func FsBatchRename(c *gin.Context) {
 		common.ErrorResp(c, err, 400)
 		return
 	}
+	if len(req.RenameObjects) > maxBatchRenameObjects {
+		common.ErrorStrResp(c, "too many rename operations", 400)
+		return
+	}
 	user := c.Request.Context().Value(conf.UserKey).(*model.User)
 	if !user.CanRename() {
 		common.ErrorResp(c, errs.PermissionDenied, 403)
@@ -202,6 +212,10 @@ func FsRegexRename(c *gin.Context) {
 	var req RegexRenameReq
 	if err := c.ShouldBind(&req); err != nil {
 		common.ErrorResp(c, err, 400)
+		return
+	}
+	if len(req.SrcNameRegex) > maxRegexPatternLen || len(req.NewNameRegex) > maxRegexReplaceLen {
+		common.ErrorStrResp(c, "regex input too long", 400)
 		return
 	}
 	user := c.Request.Context().Value(conf.UserKey).(*model.User)

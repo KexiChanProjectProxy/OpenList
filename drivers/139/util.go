@@ -836,11 +836,11 @@ func (d *Yun139) step1_password_login() (string, error) {
 		cguidMatch := regexp.MustCompile(`cguid=([^&]+)`).FindStringSubmatch(locationHeader)
 		if len(sidMatch) > 1 {
 			sid = sidMatch[1]
-			log.Debugf("DEBUG: 从 Location 提取到 sid: %s", sid)
+			log.Debugf("DEBUG: 从 Location 提取到 sid")
 		}
 		if len(cguidMatch) > 1 {
 			extractedCguid = cguidMatch[1]
-			log.Debugf("DEBUG: 从 Location 提取到 cguid: %s", extractedCguid)
+			log.Debugf("DEBUG: 从 Location 提取到 cguid")
 		}
 	}
 
@@ -852,11 +852,11 @@ func (d *Yun139) step1_password_login() (string, error) {
 			cookieCguidMatch := regexp.MustCompile(`cguid=([^;]+)`).FindStringSubmatch(cookieStr)
 			if len(ssoSidMatch) > 1 && sid == "" {
 				sid = ssoSidMatch[1]
-				log.Debugf("DEBUG: 从 Set-Cookie 提取到 sid: %s", sid)
+				log.Debugf("DEBUG: 从 Set-Cookie 提取到 sid")
 			}
 			if len(cookieCguidMatch) > 1 && extractedCguid == "" {
 				extractedCguid = cookieCguidMatch[1]
-				log.Debugf("DEBUG: 从 Set-Cookie 提取到 cguid: %s", extractedCguid)
+				log.Debugf("DEBUG: 从 Set-Cookie 提取到 cguid")
 			}
 		}
 	}
@@ -1115,12 +1115,12 @@ func (d *Yun139) yun139EncryptedRequest(url string, body interface{}, headers ma
 	var decryptedBytes []byte
 
 	if len(respBody) > 0 && respBody[0] == '{' {
-		log.Warnf("yun139EncryptedRequest: received a plain JSON response, not an encrypted string. Body: %s", string(respBody))
+		log.Warnf("yun139EncryptedRequest: received a plain JSON response, not an encrypted string")
 		decryptedBytes = respBody
 	} else {
 		decodedResp, err := base64.StdEncoding.DecodeString(string(respBody))
 		if err != nil {
-			return nil, fmt.Errorf("yun139EncryptedRequest: response base64 decode failed: %w. Body: '%s'", err, string(respBody))
+			return nil, fmt.Errorf("yun139EncryptedRequest: response base64 decode failed: %w", err)
 		}
 
 		if len(decodedResp) < 16 {

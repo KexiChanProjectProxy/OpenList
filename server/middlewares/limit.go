@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"io"
+	"net/http"
 
 	"github.com/OpenListTeam/OpenList/v4/internal/stream"
 	"github.com/gin-gonic/gin"
@@ -48,6 +49,13 @@ func DownloadRateLimiter(limiter stream.Limiter) gin.HandlerFunc {
 				Ctx:     c,
 			},
 		}
+		c.Next()
+	}
+}
+
+func RequestBodyLimit(maxBytes int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
 		c.Next()
 	}
 }

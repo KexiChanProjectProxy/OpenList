@@ -235,7 +235,7 @@ func (d *Cloud189) oldUpload(dstDir model.Obj, file model.FileStreamer) error {
 	if utils.Json.Get(res.Body(), "MD5").ToString() != "" {
 		return nil
 	}
-	log.Debugf(res.String())
+	log.Debugf("%s", res.String())
 	return errors.New(res.String())
 }
 
@@ -377,7 +377,7 @@ func (d *Cloud189) newUpload(ctx context.Context, dstDir model.Obj, file model.F
 		if err != nil {
 			return err
 		}
-		log.Debugf("%+v %+v", r, r.Request.Header)
+		log.Debugf("multipart upload request finished with status=%d", r.StatusCode)
 		_ = r.Body.Close()
 		up(float64(i) * 100 / float64(count))
 	}
