@@ -338,7 +338,7 @@ func FsGet(c *gin.Context, req *FsGetReq, user *model.User) {
 		return
 	}
 	if user.IsUploadOnly() && !obj.IsDir() {
-		common.ErrorStrResp(c, "expire missing", 401)
+		common.ErrorResp(c, errs.PermissionDenied, 403)
 		return
 	}
 	var rawURL string
@@ -443,7 +443,7 @@ func FsOther(c *gin.Context) {
 	}
 	user := c.Request.Context().Value(conf.UserKey).(*model.User)
 	if user.IsUploadOnly() {
-		common.ErrorStrResp(c, "expire missing", 401)
+		common.ErrorResp(c, errs.PermissionDenied, 403)
 		return
 	}
 	var err error
