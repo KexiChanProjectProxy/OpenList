@@ -25,8 +25,8 @@ jobs:
     needs: prerelease
     strategy:
       matrix:
-        build-type: [ 'standard', 'lite' ]
-        target-platform: [ '', 'android', 'freebsd', 'linux_musl', 'linux_musl_arm' ]
+        build-type: [ 'standard' ]
+        target-platform: [ '' ]
     name: Release ${{ matrix.target-platform && format('{0} ', matrix.target-platform) || '' }}${{ matrix.build-type == 'lite' && 'Lite' || '' }}
     runs-on: ubuntu-latest
     steps:
@@ -74,4 +74,3 @@ jobs:
           files: build/compress/*
           prerelease: false
           tag_name: ${{ github.event.release.tag_name }}
-
