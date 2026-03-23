@@ -114,8 +114,14 @@ func FsList(c *gin.Context, req *ListReq, user *model.User) {
 			directUploadTools = op.GetDirectUploadTools(storage)
 		}
 	}
+	respContent := toObjsResp(objs, reqPath, isEncrypt(meta, reqPath))
+	if user.IsUploadOnly() {
+		for i := range respContent {
+			respContent[i].Sign = ""
+		}
+	}
 	common.SuccessResp(c, FsListResp{
-		Content:           toObjsResp(objs, reqPath, isEncrypt(meta, reqPath)),
+		Content:           respContent,
 		Total:             int64(total),
 		Readme:            getReadme(meta, reqPath),
 		Header:            getHeader(meta, reqPath),
@@ -306,6 +312,10 @@ func FsGet(c *gin.Context, req *FsGetReq, user *model.User) {
 		common.ErrorResp(c, err, 500)
 		return
 	}
+	if user.IsUploadOnly() && !obj.IsDir() {
+		common.ErrorResp(c, errs.PermissionDenied, 403)
+		return
+	}
 	var rawURL string
 
 	storage, err := fs.GetStorage(reqPath, &fs.GetStoragesArgs{})
@@ -407,6 +417,10 @@ func FsOther(c *gin.Context) {
 		return
 	}
 	user := c.Request.Context().Value(conf.UserKey).(*model.User)
+	if user.IsUploadOnly() {
+		common.ErrorResp(c, errs.PermissionDenied, 403)
+		return
+	}
 	var err error
 	req.Path, err = user.JoinPath(req.Path)
 	if err != nil {

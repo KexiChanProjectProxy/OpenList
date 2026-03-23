@@ -219,6 +219,24 @@ func (u *User) CanShare() bool {
 	return CanShare(u.Permission)
 }
 
+// IsUploadOnly reports whether the user only has basic write permission
+// (mkdir/upload) but no additional manage/read extension permissions.
+func IsUploadOnly(permission int32) bool {
+	if !CanWrite(permission) {
+		return false
+	}
+	// bits 4..14 are rename/move/copy/remove/webdav/ftp/archive/share capabilities
+	var extraPermMask int32
+	for i := 4; i <= 14; i++ {
+		extraPermMask |= 1 << i
+	}
+	return permission&extraPermMask == 0
+}
+
+func (u *User) IsUploadOnly() bool {
+	return IsUploadOnly(u.Permission)
+}
+
 func (u *User) JoinPath(reqPath string) (string, error) {
 	return utils.JoinBasePath(u.BasePath, reqPath)
 }
