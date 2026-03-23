@@ -23,16 +23,11 @@ jobs:
   # Main release job for all platforms
   release:
     needs: prerelease
-    strategy:
-      matrix:
-        build-type: [ 'standard' ]
-        target-platform: [ '' ]
-    name: Release ${{ matrix.target-platform && format('{0} ', matrix.target-platform) || '' }}${{ matrix.build-type == 'lite' && 'Lite' || '' }}
+    name: Release Standard
     runs-on: ubuntu-latest
     steps:
 
       - name: Free Disk Space (Ubuntu)
-        if: matrix.target-platform == ''
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
@@ -54,7 +49,6 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependencies
-        if: matrix.target-platform == ''
         run: |
           sudo snap install zig --classic --beta
           docker pull crazymax/xgo:latest
@@ -63,10 +57,30 @@ jobs:
 
       - name: Build
         run: |
-          bash build.sh release ${{ matrix.build-type == 'lite' && 'lite' || '' }} ${{ matrix.target-platform }}
+          bash build.sh release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FRONTEND_REPO: ${{ vars.FRONTEND_REPO }}
+
+      - name: Keep Minimal Assets
+        run: |
+          cd build/compress
+          shopt -s nullglob
+          for f in *; do
+            case "$f" in
+              openlist-linux-amd64.tar.gz|openlist-linux-arm64.tar.gz|openlist-windows-amd64.zip|openlist-windows-arm64.zip)
+                ;;
+              *)
+                rm -f "$f"
+                ;;
+            esac
+          done
+          md5sum \
+            openlist-linux-amd64.tar.gz \
+            openlist-linux-arm64.tar.gz \
+            openlist-windows-amd64.zip \
+            openlist-windows-arm64.zip \
+            > md5-windows-linux.txt
 
       - name: Upload assets
         uses: softprops/action-gh-release@v2
