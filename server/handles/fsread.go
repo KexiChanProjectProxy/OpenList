@@ -106,6 +106,9 @@ func FsList(c *gin.Context, req *ListReq, user *model.User) {
 		common.ErrorResp(c, err, 500)
 		return
 	}
+	if user.IsUploadOnly() {
+		objs = filterTodayObjs(objs, time.Now())
+	}
 	total, objs := pagination(objs, &req.PageReq)
 	provider := "unknown"
 	var directUploadTools []string
@@ -169,6 +172,9 @@ func FsDirs(c *gin.Context) {
 		common.ErrorResp(c, err, 500)
 		return
 	}
+	if user.IsUploadOnly() {
+		objs = filterTodayObjs(objs, time.Now())
+	}
 	dirs := filterDirs(objs)
 	common.SuccessResp(c, dirs)
 }
@@ -189,6 +195,25 @@ func filterDirs(objs []model.Obj) []DirResp {
 		}
 	}
 	return dirs
+}
+
+func filterTodayObjs(objs []model.Obj, now time.Time) []model.Obj {
+	var filtered []model.Obj
+	now = now.In(time.Local)
+	for _, obj := range objs {
+		if isSameLocalDay(obj.CreateTime(), now) {
+			filtered = append(filtered, obj)
+		}
+	}
+	return filtered
+}
+
+func isSameLocalDay(t, now time.Time) bool {
+	if t.IsZero() {
+		return false
+	}
+	t = t.In(time.Local)
+	return t.Year() == now.Year() && t.Month() == now.Month() && t.Day() == now.Day()
 }
 
 func getReadme(meta *model.Meta, path string) string {
