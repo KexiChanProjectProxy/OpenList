@@ -7,6 +7,7 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/cmd/flags"
 	_ "github.com/OpenListTeam/OpenList/v4/drivers"
 	_ "github.com/OpenListTeam/OpenList/v4/internal/archive"
+	_ "github.com/OpenListTeam/OpenList/v4/internal/auto_rename"
 	_ "github.com/OpenListTeam/OpenList/v4/internal/offline_download"
 	"github.com/spf13/cobra"
 )

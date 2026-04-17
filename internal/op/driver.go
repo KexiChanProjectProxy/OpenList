@@ -173,6 +173,13 @@ func getMainItems(config driver.Config) []driver.Item {
 		Default:  "false",
 		Required: true,
 	})
+	items = append(items, driver.Item{
+		Name:     "auto_rename",
+		Type:     conf.TypeBool,
+		Default:  "false",
+		Required: false,
+		Help:     "Automatically rename new image files in subdirectories",
+	})
 	return items
 }
 func getAdditionalItems(t reflect.Type, defaultRoot string) []driver.Item {
