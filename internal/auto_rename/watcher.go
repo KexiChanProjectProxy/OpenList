@@ -340,7 +340,7 @@ func renameFile(filePath string) error {
 	prefix := fmt.Sprintf("%s%s-", baseDir, date)
 
 	for seq := 1; ; seq++ {
-		newName := fmt.Sprintf("%s%03d%s", prefix, seq, ext)
+		newName := fmt.Sprintf("%s%d%s", prefix, seq, ext)
 		target := filepath.Join(dir, newName)
 		if filepath.Clean(target) == filepath.Clean(filePath) {
 			return nil
