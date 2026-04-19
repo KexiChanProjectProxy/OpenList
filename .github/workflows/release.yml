@@ -1,28 +1,22 @@
 name: Release builds
 
 on:
-  release:
-    types: [ published ]
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build for'
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
-  # Set release to prerelease first
-  prerelease:
-    name: Set Prerelease
-    runs-on: ubuntu-latest
-    steps:
-      - name: Prerelease
-        uses: irongut/EditRelease@v1.2.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          id: ${{ github.event.release.id }}
-          prerelease: true
-
   # Main release job for all platforms
   release:
-    needs: prerelease
     name: Release Standard
     runs-on: ubuntu-latest
     steps:
@@ -87,4 +81,4 @@ jobs:
         with:
           files: build/compress/*
           prerelease: false
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ inputs.tag || github.ref_name }}
