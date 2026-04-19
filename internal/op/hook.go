@@ -110,3 +110,16 @@ func callStorageHooks(typ string, storage driver.Driver) {
 func RegisterStorageHook(hook StorageHook) {
 	storageHooks = append(storageHooks, hook)
 }
+
+// StoragesLoaded
+var storagesLoadedCallbacks = make([]func(), 0)
+
+func RegisterStoragesLoadedCallback(f func()) {
+	storagesLoadedCallbacks = append(storagesLoadedCallbacks, f)
+}
+
+func CallStoragesLoadedCallbacks() {
+	for _, cb := range storagesLoadedCallbacks {
+		cb()
+	}
+}

@@ -26,5 +26,6 @@ func LoadStorages() {
 			}
 		}
 		conf.SendStoragesLoadedSignal()
+		op.CallStoragesLoadedCallbacks()
 	}(storages)
 }
